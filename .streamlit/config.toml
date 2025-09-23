@@ -1,0 +1,12 @@
+[server]
+# Allow larger PDF uploads (in MB)
+maxUploadSize = 50
+enableXsrfProtection = true
+enableWebsocketCompression = true
+
+[client]
+toolbarMode = "minimal"
+
+[theme]
+base = "light"
+primaryColor = "#6c5ce7"   # Accent color
