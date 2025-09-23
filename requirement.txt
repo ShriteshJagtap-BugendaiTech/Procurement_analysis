@@ -20,5 +20,5 @@ shutilwhich
 uuid
 glob2
 pathlib
-pdf2image==1.17.0
+pdf2image
 openpyxl
