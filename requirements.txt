@@ -4,9 +4,6 @@ pandas
 numpy==1.26.4
 nltk
 textblob
-flask
-flask-caching
-PyPDF2
 reportlab
 pillow
 opencv-python-headless>=4.8
