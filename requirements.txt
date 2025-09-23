@@ -1,13 +1,12 @@
 dash
 dash-bootstrap-components
 pandas
-numpy
+numpy==1.26.4
 nltk
 textblob
 flask
 flask-caching
 PyPDF2
-pdfminer.six
 reportlab
 pillow
 opencv-python
@@ -20,5 +19,11 @@ shutilwhich
 uuid
 glob2
 pathlib
-pdf2image
+pdf2image==1.17.0
 openpyxl
+imgaug==0.4.0            
+opencv-python-headless>=4.8
+shapely>=2.0
+pyclipper>=1.3
+protobuf<4
+scipy>=1.10
