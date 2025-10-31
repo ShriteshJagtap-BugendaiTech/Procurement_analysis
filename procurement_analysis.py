@@ -245,14 +245,14 @@ def page_groq_key():
             else:
                 st.warning("Please paste your Groq API key.")
     with colB:
-    if st.button("Test Groq (list models)", width="stretch") and st.session_state.groq_client:
-        try:
-            models = st.session_state.groq_client.models.list()
-            st.success("Groq reachable.")
-            st.json(models.dict() if hasattr(models, "dict") else models)
-        except Exception as e:
-            record_groq_error(e, context="manual models.list() test")
-            st.exception(e) 
+        if st.button("Test Groq (list models)", width="stretch") and st.session_state.groq_client:
+            try:
+                models = st.session_state.groq_client.models.list()
+                st.success("Groq reachable.")
+                st.json(models.dict() if hasattr(models, "dict") else models)
+            except Exception as e:
+                record_groq_error(e, context="manual models.list() test")
+                st.exception(e) 
 
 def page_main():
     sidebar_header()
