@@ -53,6 +53,10 @@ if "ocr" not in st.session_state:
     # Initialize once (faster subsequent OCR calls)
     st.session_state.ocr = PaddleOCR(use_angle_cls=True, lang="en")
 
+def record_groq_error(err: Exception, context: str = "", payload: dict | None = None):
+    st.session_state.groq_last_error = {"context": context, "error": str(err)}
+    if payload:
+        st.session_state.groq_last_request = payload
 # ============================================================================
 # Domain Data
 # ============================================================================
@@ -80,12 +84,16 @@ def make_groq_client(api_key: str) -> Groq:
 def validate_groq_key(api_key: str) -> bool:
     try:
         client = make_groq_client(api_key)
-        _ = client.models.list()  # lightweight validation call
+        # lightweight ping
+        _ = client.models.list()
         st.session_state.groq_client = client
+        st.session_state.groq_last_error = None
         return True
     except Exception as e:
         st.session_state.groq_client = None
-        st.error(f"Groq API key validation failed: {e}")
+        record_groq_error(e, context="models.list() during validation")
+        st.exception(e)  # shows full traceback in the app
+        st.error("Groq API key validation failed. See traceback above.")
         return False
 
 # ============================================================================
@@ -185,7 +193,7 @@ def clean_salesforce_output(extracted: dict, doc_type: str, salesforce_columns: 
 def sidebar_header():
     with st.sidebar:
         try:
-            st.image("assets/logo.png", use_container_width=True)
+            st.image("assets/logo.png", width="stretch")
         except Exception:
             st.write("")  # no-op if missing
         st.title("TheAiExtract-Textractor")
@@ -228,7 +236,7 @@ def page_groq_key():
 
     colA, colB = st.columns(2)
     with colA:
-        if st.button("Validate Key", use_container_width=True):
+        if st.button("Validate Key", width="stretch"):
             if key.strip():
                 if validate_groq_key(key.strip()):
                     st.session_state.groq_valid = True
@@ -237,7 +245,14 @@ def page_groq_key():
             else:
                 st.warning("Please paste your Groq API key.")
     with colB:
-        st.write("")  # spacer
+    if st.button("Test Groq (list models)", width="stretch") and st.session_state.groq_client:
+        try:
+            models = st.session_state.groq_client.models.list()
+            st.success("Groq reachable.")
+            st.json(models.dict() if hasattr(models, "dict") else models)
+        except Exception as e:
+            record_groq_error(e, context="manual models.list() test")
+            st.exception(e) 
 
 def page_main():
     sidebar_header()
@@ -291,12 +306,12 @@ def page_main():
                         first_sheet = list(sheets.keys())[0]
                         df_main = sheets[first_sheet]
                         st.markdown("**Main Fields:**")
-                        st.dataframe(df_main, use_container_width=True)
+                        st.dataframe(df_main, width="stretch")
 
                         for name, df in sheets.items():
                             if name != first_sheet:
                                 st.markdown(f"**{name} Table:**")
-                                st.dataframe(df, use_container_width=True)
+                                st.dataframe(df, width="stretch")
 
                         st.download_button(
                             "⬇ Download Excel",
@@ -323,7 +338,7 @@ def page_main():
                                 st.markdown("**Main Fields:**")
                                 main_data = {k: v for k, v in cleaned_data.items() if not isinstance(v, list)}
                                 df_main = pd.DataFrame(list(main_data.items()), columns=["Field", "Value"])
-                                st.dataframe(df_main, use_container_width=True)
+                                st.dataframe(df_main, width="stretch")
 
                                 st.markdown("### Download Results")
                                 excel_buffer = io.BytesIO()
