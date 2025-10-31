@@ -3,7 +3,7 @@ import os
 import io
 import re
 import ast
-import time
+import time,json
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -138,33 +138,72 @@ def classify_doc(text: str, groq_client: Groq) -> str:
         doc_type = "PO"
     return doc_type
 
+
+
 def extract_fields(text: str, doc_type: str, salesforce_columns: dict, groq_client: Groq) -> dict:
     if doc_type == "RFQ":
         fields = salesforce_columns["Opportunity"] + ["OpportunityLineItem"]
     elif doc_type == "Quotation":
         fields = salesforce_columns["Quote"] + ["QuoteLineItem"]
     elif doc_type == "PO":
-        fields = salesforce_columns["Order"] + ["OrderItems"]
+        fields = salesforce_columns["Order"] + ["OrderItems"]  # NOTE: keep plural here
     else:
         fields = []
 
-    prompt = f"Extract the following fields: {fields}\n\nOCR Text:\n{text}"
-    resp = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=1800,
-    )
-    output = resp.choices[0].message.content.strip()
-    output = re.sub(r"```[\s\S]*?```", "", output)
-    match = re.search(r"\{[\s\S]+\}", output)
-    dict_str = match.group(0) if match else output
+    prompt = f"Extract the following fields (use EXACT keys): {fields}\n\nReturn JSON only (no markdown fences).\n\nOCR Text:\n{text}"
 
     try:
-        data = ast.literal_eval(dict_str)
-        if not isinstance(data, dict):
-            data = {}
+        st.session_state.groq_last_request = {"endpoint": "chat.completions", "op": "extract_fields", "model": "llama-3.3-70b-versatile", "fields": fields}
+        resp = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            max_tokens=1800,
+        )
+    except Exception as e:
+        record_groq_error(e, context="extract_fields() completion",
+                          payload={"model": "llama-3.3-70b-versatile", "fields": fields})
+        st.exception(e)
+        st.error("Groq extraction failed. See the Debug expanders.")
+        return {}
+
+    # --- RAW MODEL OUTPUT (store for UI) ---
+    output = resp.choices[0].message.content.strip()
+    st.session_state.groq_last_raw = output
+
+    # Strip code fences if present
+    output_clean = re.sub(r"^```(?:json)?\s*|\s*```$", "", output, flags=re.IGNORECASE|re.MULTILINE)
+
+    # --- Parse robustly: JSON first, then fallback ---
+    data = {}
+    try:
+        data = json.loads(output_clean)
     except Exception:
+        # Try to salvage first {...} block
+        m = re.search(r"\{[\s\S]*\}", output_clean)
+        if m:
+            try:
+                data = json.loads(m.group(0))
+            except Exception:
+                try:
+                    # last resort: python literal
+                    data = ast.literal_eval(m.group(0))
+                except Exception:
+                    data = {}
+        else:
+            try:
+                data = ast.literal_eval(output_clean)
+                if not isinstance(data, dict):
+                    data = {}
+            except Exception:
+                data = {}
+
+    if not isinstance(data, dict):
         data = {}
+
+    # store parsed dict for UI
+    st.session_state.groq_last_parsed = data
+    st.session_state.groq_last_fields = fields
     return data
 
 def clean_salesforce_output(extracted: dict, doc_type: str, salesforce_columns: dict) -> dict:
@@ -219,6 +258,17 @@ def page_login():
             st.success("Login successful.")
             st.rerun()
         else:
+            with st.expander("🔎 Debug: OCR text preview", expanded=False):
+                st.write(text[:2000] if text else "(empty)")
+            
+            with st.expander("🐙 Debug: Groq raw output", expanded=False):
+                st.text(st.session_state.get("groq_last_raw", "(no response captured)"))
+            
+            with st.expander("📦 Debug: Parsed JSON (pre-clean)", expanded=False):
+                st.json(st.session_state.get("groq_last_parsed", {}))
+            
+            with st.expander("🧭 Debug: Fields requested from Groq", expanded=False):
+                st.write(st.session_state.get("groq_last_fields", []))
             st.error("Invalid credentials.")
 
 def page_groq_key():
