@@ -1,6 +1,7 @@
 dash
 dash-bootstrap-components
 pandas
+streamlit
 numpy==1.26.4
 nltk
 textblob
