@@ -350,7 +350,7 @@ elif not st.session_state.groq_valid:
     if PREFILL_GROQ and not st.session_state.groq_client:
         if validate_groq_key(PREFILL_GROQ):
             st.session_state.groq_valid = True
-            st.experimental_rerun()
+            st.rerun()
     page_groq_key()
 else:
     page_main()
