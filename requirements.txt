@@ -5,10 +5,10 @@ numpy==1.26.4
 nltk
 textblob
 reportlab
-pillow
-opencv-python-headless>=4.8
+pillow==10.3.0
+opencv-python-headless==4.9.0.80
 paddleocr==2.6.1.3
-paddlepaddle
+paddlepaddle==2.6.2
 textdistance
 python-dotenv
 requests
@@ -19,7 +19,6 @@ pathlib
 pdf2image==1.17.0
 openpyxl
 imgaug==0.4.0            
-opencv-python-headless>=4.8
 shapely>=2.0
 pyclipper>=1.3
 protobuf<4
